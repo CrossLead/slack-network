@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<svg width="960" height="500"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://packd.now.sh/slack@8.3.0"></script>
+<script>
+
+const token = getParameterByName('token');
+
+main()
+  .catch(err => {
+    console.log(err.stack);
+  })
+
+function getParameterByName(name, url) {
+    if (!url) url = window.location.href;
+    name = name.replace(/[\[\]]/g, "\\$&");
+    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, " "));
+}
+
+async function main() {
+  const channelHash = await getChannelMap();
+  const nodeMap = new Map();
+  const addedEdges = new Set();
+
+  var svg = d3.select("svg"),
+      width = +svg.attr("width"),
+      height = +svg.attr("height"),
+      color = d3.scaleOrdinal(d3.schemeCategory10);
+
+  // var min_zoom = 0.1;
+  // var max_zoom = 7;
+  // var zoom = d3.behavior.zoom().scaleExtent([min_zoom,max_zoom]);
+
+  svg
+    .attr("viewBox", "0 0 " + width + " " + height)
+    .attr("preserveAspectRatio", "xMidYMid meet");
+
+  // build the arrow.
+  svg.append("svg:defs").selectAll("marker")
+      .data(["end"])      // Different link/path types can be defined here
+    .enter().append("svg:marker")    // This section adds in the arrows
+      .attr("id", String)
+      .attr("viewBox", "0 -5 10 10")
+      .attr("refX", 15)
+      .attr("refY", -1.5)
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 6)
+      .attr("orient", "auto")
+    .append("svg:path")
+      .attr("d", "M0,-5L10,0L0,5");
+
+
+  var nodes = [],
+      links = [];
+
+  var simulation = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink().id(function(d) { return d.index }).distance(150))
+      .force("collide",d3.forceCollide( function(d){return d.r + 8 }).iterations(16) )
+      .force("charge", d3.forceManyBody())
+      .force("y", d3.forceY())
+      .force("x", d3.forceX())
+      .on("tick", ticked);
+
+  var g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")"),
+      link = g.append("g").attr("stroke", "#000").attr("stroke-width", 1.5).attr("marker-end", "url(#end)").selectAll(".link"),
+      node = g.append("g").attr("stroke", "#fff").attr("stroke-width", 1.5).selectAll(".node");
+
+  node = node
+    .call(d3.drag()
+    .on("start", dragstarted)
+    .on("drag", dragged)
+    .on("end", dragended));
+
+  const bot = slack.rtm.client();
+
+  bot.listen({
+    token
+  });
+
+  const start = Date.now();
+
+  bot.message(message => {
+    console.log(`Got a message: ${JSON.stringify(message, null, 2)}`);
+
+    if ((new Date(message.ts * 1000)) < start) return;
+
+    const otherUsers = channelHash[message.channel];
+
+    if (otherUsers) {
+      const newEdges = [];
+      const newNodes = [];
+
+      otherUsers.forEach(recievingUserId => {
+        if (recievingUserId === message.user) return;
+
+        const A = nodeMap.get(message.user) || { id: message.user };
+        const B = nodeMap.get(recievingUserId) || { id: recievingUserId };
+
+
+        if (!nodeMap.has(B.id)) {
+          newNodes.push(B);
+          nodeMap.set(B.id, B);
+        }
+
+        if (!nodeMap.has(A.id)) {
+          newNodes.push(A);
+          nodeMap.set(A.id, A);
+        }
+
+        const messageHash = [message.user, recievingUserId].sort().join('-');
+
+        if (addedEdges.has(messageHash)) return;
+        addedEdges.add(messageHash);
+
+
+        newEdges.push({source: A, target: B });
+      });
+
+      nodes.push(...newNodes);
+      links.push(...newEdges);
+    }
+
+    restart();
+  });
+
+
+
+  function restart() {
+    console.log(`
+
+      RESTARTING
+
+    `);
+
+    // Apply the general update pattern to the nodes.
+    node = node.data(nodes, function(d) { return d.id;});
+    node.exit().remove();
+    node = node.enter().append("circle").attr("fill", function(d) { return color(d.id); }).attr("r", 8).merge(node);
+
+    // Apply the general update pattern to the links.
+    link = link.data(links, function(d) { return d.source.id + "-" + d.target.id; });
+    link.exit().remove();
+    link = link.enter().append("line").merge(link);
+
+    // Update and restart the simulation.
+    simulation.nodes(nodes);
+    simulation.force("link").links(links);
+    simulation.alpha(1).restart();
+  }
+
+  function ticked() {
+    node.attr("cx", function(d) { return d.x; })
+        .attr("cy", function(d) { return d.y; })
+
+    link.attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
+  }
+
+  function dragstarted(d) {
+      if (!d3.event.active) {
+        restart();
+      }
+      d.fx = d.x;
+      d.fy = d.y;
+  }
+
+  function dragged(d) {
+      d.fx = d3.event.x;
+      d.fy = d3.event.y;
+  }
+
+  function dragended(d) {
+      if (!d3.event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+  }
+
+}
+
+
+async function getChannelMap() {
+  const channels = await (new Promise((res, rej) => {
+    slack.channels.list({token}, (err, data) => {
+      err ? rej(err) : res(data.channels);
+    });
+  }));
+
+  return channels.reduce((out, chan) => {
+    out[chan.id] = chan.members;
+    return out;
+  }, {});
+}
+
+
+
+
+</script>
