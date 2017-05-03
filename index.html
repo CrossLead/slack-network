@@ -12,19 +12,27 @@
       border-radius: 100%;
     }
     h1 {
-      font-family: sans-serif;
       width: 100%;
       top: 20px;
       text-align: center;
       position: fixed;
-      color: #ccc;
+    }
+
+    #reset {
+      top: 20px;
+      left: 20px;
+      position: fixed;
     }
   </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
 </head>
 <h1>
-  Collaboration
+  Slackers
 </h1>
+<button id="reset">
+  Reset
+</button>
 <svg width="100%" height="98vh">
   <defs>
     <clipPath id="clipCircle">
@@ -164,7 +172,14 @@ async function main() {
     restart();
   });
 
+  d3.select('#reset')
+    .on('click', clear);
 
+  function clear() {
+    while (nodes.pop()) {}
+    while (links.pop()) {}
+    restart();
+  }
 
   function restart() {
     // // // Apply the general update pattern to the nodes.
