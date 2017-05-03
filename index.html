@@ -12,6 +12,9 @@
     image {
       border-radius: 100%;
     }
+    .missing {
+      font-style: italic;
+    }
   </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
@@ -27,6 +30,9 @@
       <button id="reset">
         Reset
       </button>
+      <div class="missing">
+        Waiting for slack messages...
+      </div>
       <div class="table-container"></div>
     </div>
     <div class="two-thirds column">
@@ -79,6 +85,7 @@ function getParameterByName(name, url) {
 // The table generation function
 function updateTable(data, columns) {
     d3.select('#score-table').remove();
+    d3.select('.missing').remove();
     var table = d3.select(".table-container").append("table")
             .attr('id', 'score-table')
             .attr("class", "u-full-width"),
