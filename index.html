@@ -1,5 +1,7 @@
 <!DOCTYPE html>
 <head>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
   <style>
     body {
       background: #eee;
@@ -16,8 +18,6 @@
       font-style: italic;
     }
   </style>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
 </head>
 <div class="container">
 
@@ -177,6 +177,7 @@ async function main() {
   const start = Date.now();
 
   bot.message(message => {
+    if (!userHash[message.user]) return;
     const time = (new Date(message.ts * 1000));
     if (time < start) return;
     if (message.user) toastr.info(`New message from @${userHash[message.user].name}`);
@@ -188,7 +189,7 @@ async function main() {
       const newNodes = [];
 
       otherUsers.forEach(recievingUserId => {
-        if (recievingUserId === message.user) return;
+        if (recievingUserId === message.user || !userHash[recievingUserId]) return;
 
         const A = nodeMap.get(message.user) || { id: message.user };
         const B = nodeMap.get(recievingUserId) || { id: recievingUserId };
