@@ -2,46 +2,50 @@
 <head>
   <style>
     body {
-      background: #ccc;
+      background: #eee;
     }
     svg {
       background: #fff;
-      border: 1px solid #000;
+      border: 1px solid #555;
+      border-radius: 5px;
     }
     image {
       border-radius: 100%;
-    }
-    h1 {
-      width: 100%;
-      top: 20px;
-      text-align: center;
-      position: fixed;
-    }
-
-    #reset {
-      top: 20px;
-      left: 20px;
-      position: fixed;
     }
   </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
 </head>
-<h1>
-  Slackers
-</h1>
-<button id="reset">
-  Reset
-</button>
-<svg width="100%" height="98vh">
-  <defs>
-    <clipPath id="clipCircle">
-      <circle r="16" cx="0" cy="0"/>
-    </clipPath>
-  </defs>
-</svg>
+<div class="container">
+
+  <!-- there are a few shorthand columns widths as well -->
+  <div class="row">
+    <div class="one-third column">
+      <h1>
+        Slackers
+      </h1>
+      <button id="reset">
+        Reset
+      </button>
+      <div class="table-container"></div>
+    </div>
+    <div class="two-thirds column">
+      <svg width="100%" height="98vh">
+        <defs>
+          <clipPath id="clipCircle">
+            <circle r="16" cx="0" cy="0"/>
+          </clipPath>
+        </defs>
+      </svg>
+    </div>
+  </div>
+
+</div>
+
+
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <script src="https://packd.now.sh/slack@8.3.0"></script>
+<script charset="UTF-8" src="https://packd.now.sh/event-rank@0.0.9"></script>
 <script
   src="https://code.jquery.com/jquery-2.2.4.min.js"
   integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44="
@@ -67,6 +71,46 @@ function getParameterByName(name, url) {
     if (!results) return null;
     if (!results[2]) return '';
     return decodeURIComponent(results[2].replace(/\+/g, " "));
+}
+
+
+
+
+// The table generation function
+function updateTable(data, columns) {
+    d3.select('#score-table').remove();
+    var table = d3.select(".table-container").append("table")
+            .attr('id', 'score-table')
+            .attr("class", "u-full-width"),
+        thead = table.append("thead"),
+        tbody = table.append("tbody");
+
+    // append the header row
+    var th = thead.append("tr")
+        .selectAll("th")
+        .data(columns)
+        .enter()
+        .append("th")
+          .text(function(column) { return column; });
+
+    // create a row for each object in the data
+    var rows = tbody.selectAll("tr")
+        .data(data)
+        .enter()
+        .append("tr");
+
+    // create a cell in each row for each column
+    var cells = rows.selectAll("td")
+        .data(function(row) {
+            return columns.map(function(column) {
+                return {column: column, value: row[column]};
+            });
+        })
+        .enter()
+        .append("td")
+            .html(function(d) { return d.value; });
+
+    return table;
 }
 
 async function main() {
@@ -126,7 +170,8 @@ async function main() {
   const start = Date.now();
 
   bot.message(message => {
-    if ((new Date(message.ts * 1000)) < start) return;
+    const time = (new Date(message.ts * 1000));
+    if (time < start) return;
     if (message.user) toastr.info(`New message from @${userHash[message.user].name}`);
 
     const otherUsers = channelHash[message.channel];
@@ -152,15 +197,16 @@ async function main() {
           nodeMap.set(A.id, A);
         }
 
-        const messageHash = [message.user, recievingUserId].sort().join('-');
+        const messageHash = [message.user, recievingUserId].join('-');
 
         let edge = edgeMap.get(messageHash);
         if (!edge) {
-          edge = { source: A, target: B, weight: 1 };
+          edge = { source: A, target: B, weight: 1, times: [ time ] };
           edgeMap.set(messageHash, edge);
           newEdges.push(edge);
         } else {
           edge.weight++;
+          edge.times.push(time);
           maxWeight = Math.max(maxWeight, edge.weight);
         }
       });
@@ -226,7 +272,42 @@ async function main() {
     simulation.nodes(nodes);
     simulation.force("link").links(links);
     simulation.alpha(1).restart();
+
+    const ranks = computeRanks(links);
+
+    const data = nodes.map(n => ({
+      name: '@' + userHash[n.id].name,
+      influence: ranks[n.id].value
+    }));
+
+    data.sort((a, b) => b.influence - a.influence);
+
+    updateTable(data, [ 'name', 'influence' ]);
   }
+
+
+
+
+  function computeRanks(links) {
+    const graph = {};
+
+    const events = [];
+    links.forEach((link, index) => {
+      link.times.forEach(time => {
+        events.push({ to: [link.target.id], from: link.source.id, time: +time });
+      });
+    });
+
+    events.sort((a, b) => a.time - b.time);
+
+    const R = new eventRank.EventRank({ events });
+
+    // compute EventRank values
+    R.compute();
+
+    return R.ranks;
+  }
+
 
   function ticked() {
     node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
