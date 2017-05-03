@@ -174,15 +174,16 @@ async function main() {
           .attr("y", function(d) { return -16;});
 
     const edgeColorScale = d3.scaleLinear();
-    edgeColorScale.domain([1, maxWeight]);
-    edgeColorScale.range(['blue', 'orange']);
+    edgeColorScale.domain([1, (1 + maxWeight) / 2, maxWeight]);
+    edgeColorScale.range(['#7f7f7f', '#ff7f00', '#ff0000']);
 
     // Apply the general update pattern to the links.
     link = link.data(links, function(d) { return d.source.id + "-" + d.target.id; });
     link.exit().remove();
-    link.attr('stroke', edge => edgeColorScale(edge.weight));
+    link.attr('stroke', edge => { const c = edgeColorScale(edge.weight); console.log(c); return c; });
     link = link.enter().append("line").merge(link);
-
+    link.attr('stroke', edge => { const c = edgeColorScale(edge.weight); console.log(c); return c; });
+ 
     // Update and restart the simulation.
     simulation.nodes(nodes);
     simulation.force("link").links(links);
