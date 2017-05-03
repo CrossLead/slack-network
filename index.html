@@ -46,7 +46,7 @@ async function main() {
   const channelHash = await getChannelMap();
   const userHash = await getUserHash();
   const nodeMap = new Map();
-  const addedEdges = new Set();
+  const edgeMap = new Map();
 
 
   var svg = d3.select("svg"),
@@ -128,11 +128,14 @@ async function main() {
 
         const messageHash = [message.user, recievingUserId].sort().join('-');
 
-        if (addedEdges.has(messageHash)) return;
-        addedEdges.add(messageHash);
-
-
-        newEdges.push({source: A, target: B });
+        let edge = edgeMap.get(messageHash);
+        if (!edge) {
+          edge = { source: A, target: B, weight: 1 };
+          edgeMap.set(messageHash, edge);
+          newEdges.push(edge);
+        } else {
+          edge.weight++;
+        }
       });
 
       nodes.push(...newNodes);
