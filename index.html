@@ -6,13 +6,11 @@
     }
     svg {
       background: #fff;
-      height: 98vh;
-      width: 100%;
       border: 1px solid #000;
     }
   </style>
 </head>
-<svg></svg>
+<svg width="100%" height="98vh"></svg>
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <script src="https://packd.now.sh/slack@8.3.0"></script>
 <script>
@@ -42,10 +40,11 @@ async function main() {
   const nodeMap = new Map();
   const addedEdges = new Set();
 
+
   var svg = d3.select("svg"),
-      width = +svg.attr("width"),
-      height = +svg.attr("height"),
       color = d3.scaleOrdinal(d3.schemeCategory10);
+
+  const { width, height } = svg.node().getBoundingClientRect();
 
   // var min_zoom = 0.1;
   // var max_zoom = 7;
@@ -85,17 +84,9 @@ async function main() {
       link = g.append("g").attr("stroke", "#000").attr("stroke-width", 1.5).attr("marker-end", "url(#end)").selectAll(".link"),
       node = g.append("g").attr("stroke", "#fff").attr("stroke-width", 1.5).selectAll(".node");
 
-  node = node
-    .call(d3.drag()
-    .on("start", dragstarted)
-    .on("drag", dragged)
-    .on("end", dragended));
-
   const bot = slack.rtm.client();
 
-  bot.listen({
-    token
-  });
+  bot.listen({ token });
 
   const start = Date.now();
 
@@ -139,6 +130,8 @@ async function main() {
       nodes.push(...newNodes);
       links.push(...newEdges);
     }
+
+    console.log(nodes);
 
     restart();
   });
