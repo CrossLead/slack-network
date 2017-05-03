@@ -137,7 +137,6 @@ async function main() {
         } else {
           edge.weight++;
           maxWeight = Math.max(maxWeight, edge.weight);
-          console.log('edge', edge);
         }
       });
 
@@ -174,15 +173,14 @@ async function main() {
           .attr("x", function(d) { return -16;})
           .attr("y", function(d) { return -16;});
 
-    const edgeScale = d3.scaleLinear();
-    edgeScale.domain([1, maxWeight]);
-    edgeScale.range([1, 4]);
+    const edgeColorScale = d3.scaleLinear();
+    edgeColorScale.domain([1, maxWeight]);
+    edgeColorScale.range(['red', 'green']);
 
     // Apply the general update pattern to the links.
     link = link.data(links, function(d) { return d.source.id + "-" + d.target.id; });
-    console.log('link', link);
     link.exit().remove();
-    link.attr('stroke-width', edge => edgeScale(edge.weight));
+    link.attr('stroke', edge => edgeColorScale(edge.weight));
     link = link.enter().append("line").merge(link);
 
     // Update and restart the simulation.
