@@ -70,7 +70,8 @@ async function main() {
 
 
   var nodes = [],
-      links = [];
+      links = [],
+      maxWeight = 1;
 
   var simulation = d3.forceSimulation(nodes)
       .force("link", d3.forceLink().id(function(d) { return d.index }).distance(150))
@@ -81,7 +82,7 @@ async function main() {
       .on("tick", ticked);
 
   var g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")"),
-      link = g.append("g").attr("stroke", "#000").attr("stroke-width", 1.5).attr("marker-end", "url(#end)").selectAll(".link"),
+      link = g.append("g").attr("stroke", "#000").attr("marker-end", "url(#end)").selectAll(".link"),
       node = g.append("g").attr("stroke", "#fff").attr("stroke-width", 1.5).selectAll(".node");
 
   const bot = slack.rtm.client();
@@ -127,14 +128,14 @@ async function main() {
           newEdges.push(edge);
         } else {
           edge.weight++;
+          maxWeight = Math.max(maxWeight, edge.weight);
+          console.log('edge', edge);
         }
       });
 
       nodes.push(...newNodes);
       links.push(...newEdges);
     }
-
-    console.log(nodes);
 
     restart();
   });
@@ -153,9 +154,15 @@ async function main() {
     node.exit().remove();
     node = node.enter().append("circle").attr("fill", function(d) { return color(d.id); }).attr("r", 8).merge(node);
 
+    const edgeScale = d3.scaleLinear();
+    edgeScale.domain([1, maxWeight]);
+    edgeScale.range([1, 4]);
+
     // Apply the general update pattern to the links.
     link = link.data(links, function(d) { return d.source.id + "-" + d.target.id; });
+    console.log('link', link);
     link.exit().remove();
+    link.attr('stroke-width', edge => edgeScale(edge.weight));
     link = link.enter().append("line").merge(link);
 
     // Update and restart the simulation.
