@@ -83,7 +83,7 @@ function getParameterByName(name, url) {
 
 
 // The table generation function
-function updateTable(data, columns) {
+function updateTable(data, columns, formatters) {
     d3.select('#score-table').remove();
     d3.select('.missing').remove();
     var table = d3.select(".table-container").append("table")
@@ -110,7 +110,9 @@ function updateTable(data, columns) {
     var cells = rows.selectAll("td")
         .data(function(row) {
             return columns.map(function(column) {
-                return {column: column, value: row[column]};
+                let value = row[column];
+                const formatter = formatters[column];
+                return {column: column, value: formatter ? formatter(value) : value};
             });
         })
         .enter()
@@ -290,7 +292,12 @@ async function main() {
 
     data.sort((a, b) => b.influence - a.influence);
 
-    updateTable(data, [ 'name', 'influence' ]);
+    updateTable(
+      data,
+      [ 'name', 'influence' ],
+      {
+        influence: v => Math.round(v * 1000) / 1000
+      });
   }
 
 
