@@ -11,15 +11,42 @@
     image {
       border-radius: 100%;
     }
+    h1 {
+      width: 100%;
+      top: 20px;
+      text-align: center;
+      position: fixed;
+    }
+
+    #reset {
+      top: 20px;
+      left: 20px;
+      position: fixed;
+    }
   </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
 </head>
+<h1>
+  Slackers
+</h1>
+<button id="reset">
+  Reset
+</button>
 <svg width="100%" height="98vh">
-  <clipPath id="clipCircle">
-    <circle r="16" cx="0" cy="0"/>
-  </clipPath>
+  <defs>
+    <clipPath id="clipCircle">
+      <circle r="16" cx="0" cy="0"/>
+    </clipPath>
+  </defs>
 </svg>
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <script src="https://packd.now.sh/slack@8.3.0"></script>
+<script
+  src="https://code.jquery.com/jquery-2.2.4.min.js"
+  integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44="
+  crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 <script>
 
 /**
@@ -45,9 +72,8 @@ function getParameterByName(name, url) {
 async function main() {
   const channelHash = await getChannelMap();
   const userHash = await getUserHash();
-  const nodeMap = new Map();
-  const edgeMap = new Map();
-
+  let nodeMap = new Map();
+  let edgeMap = new Map();
 
   var svg = d3.select("svg"),
       color = d3.scaleOrdinal(d3.schemeCategory10);
@@ -84,7 +110,7 @@ async function main() {
   var simulation = d3.forceSimulation(nodes)
       .force("link", d3.forceLink().id(function(d) { return d.index }).distance(150))
       .force("collide",d3.forceCollide( function(d){return d.r + 8 }).iterations(16) )
-      .force("charge", d3.forceManyBody())
+      .force("charge", d3.forceManyBody().strength(-100))
       .force("y", d3.forceY())
       .force("x", d3.forceX())
       .on("tick", ticked);
@@ -100,9 +126,8 @@ async function main() {
   const start = Date.now();
 
   bot.message(message => {
-    console.log(`Got a message: ${JSON.stringify(message, null, 2)}`);
-
     if ((new Date(message.ts * 1000)) < start) return;
+    if (message.user) toastr.info(`New message from @${userHash[message.user].name}`);
 
     const otherUsers = channelHash[message.channel];
 
@@ -147,31 +172,44 @@ async function main() {
     restart();
   });
 
+  d3.select('#reset')
+    .on('click', clear);
 
+  function clear() {
+    while (nodes.pop()) {}
+    while (links.pop()) {}
+    nodeMap = new Map();
+    edgeMap = new Map();
+    restart();
+  }
 
   function restart() {
-    // // Apply the general update pattern to the nodes.
+    // // // Apply the general update pattern to the nodes.
     // node = node.data(nodes, function(d) { return d.id;});
     // node.exit().remove();
     // node = node.enter().append("circle").attr("fill", function(d) { return color(d.id); }).attr("r", 8).merge(node);
 
     node = node.data(nodes, function(d) { return d.id;});
     node.exit().remove();
+
     // Enter any new nodes.
-    node = node.enter().append("svg:g")
+    nodeEnter = node.enter().append("svg:g")
         .attr("class", "node");
 
     // Append a circle
-    node.append("svg:circle")
+    nodeEnter.append("svg:circle")
         .attr("r", function(d) { return 16; })
         .style("fill", "#eee");
 
     // Append images
-    node.append("svg:image")
+    nodeEnter.append("svg:image")
           .attr("xlink:href",  d =>  userHash[d.id].profile.image_32)
           .attr("clip-path", "url(#clipCircle)")
           .attr("x", function(d) { return -16;})
           .attr("y", function(d) { return -16;});
+
+    node = node.merge(nodeEnter);
+
 
     const edgeColorScale = d3.scaleLinear();
     edgeColorScale.domain([1, (1 + maxWeight) / 2, maxWeight]);
@@ -183,7 +221,7 @@ async function main() {
     link.attr('stroke', edge => { const c = edgeColorScale(edge.weight); console.log(c); return c; });
     link = link.enter().append("line").merge(link);
     link.attr('stroke', edge => { const c = edgeColorScale(edge.weight); console.log(c); return c; });
- 
+
     // Update and restart the simulation.
     simulation.nodes(nodes);
     simulation.force("link").links(links);
