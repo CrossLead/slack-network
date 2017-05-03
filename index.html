@@ -152,9 +152,9 @@ async function main() {
       maxWeight = 1;
 
   var simulation = d3.forceSimulation(nodes)
-      .force("link", d3.forceLink().id(function(d) { return d.index }).distance(150))
-      .force("collide",d3.forceCollide( function(d){return d.r + 8 }).iterations(16) )
-      .force("charge", d3.forceManyBody().strength(-100))
+      .force("link", d3.forceLink().id(function(d) { return d.index }).distance(120))
+      .force("collide",d3.forceCollide( function(d) {return d.r + 16 }).iterations(32) )
+      .force("charge", d3.forceManyBody().strength(-500))
       .force("y", d3.forceY())
       .force("x", d3.forceX())
       .on("tick", ticked);
