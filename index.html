@@ -175,7 +175,7 @@ async function main() {
 
     const edgeColorScale = d3.scaleLinear();
     edgeColorScale.domain([1, maxWeight]);
-    edgeColorScale.range(['red', 'green']);
+    edgeColorScale.range(['blue', 'orange']);
 
     // Apply the general update pattern to the links.
     link = link.data(links, function(d) { return d.source.id + "-" + d.target.id; });
