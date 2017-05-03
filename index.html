@@ -8,9 +8,16 @@
       background: #fff;
       border: 1px solid #000;
     }
+    image {
+      border-radius: 100%;
+    }
   </style>
 </head>
-<svg width="100%" height="98vh"></svg>
+<svg width="100%" height="98vh">
+  <clipPath id="clipCircle">
+    <circle r="16" cx="0" cy="0"/>
+  </clipPath>
+</svg>
 <script src="https://d3js.org/d3.v4.min.js"></script>
 <script src="https://packd.now.sh/slack@8.3.0"></script>
 <script>
@@ -37,6 +44,7 @@ function getParameterByName(name, url) {
 
 async function main() {
   const channelHash = await getChannelMap();
+  const userHash = await getUserHash();
   const nodeMap = new Map();
   const edgeMap = new Map();
 
@@ -143,16 +151,28 @@ async function main() {
 
 
   function restart() {
-    console.log(`
+    // // Apply the general update pattern to the nodes.
+    // node = node.data(nodes, function(d) { return d.id;});
+    // node.exit().remove();
+    // node = node.enter().append("circle").attr("fill", function(d) { return color(d.id); }).attr("r", 8).merge(node);
 
-      RESTARTING
-
-    `);
-
-    // Apply the general update pattern to the nodes.
     node = node.data(nodes, function(d) { return d.id;});
     node.exit().remove();
-    node = node.enter().append("circle").attr("fill", function(d) { return color(d.id); }).attr("r", 8).merge(node);
+    // Enter any new nodes.
+    node = node.enter().append("svg:g")
+        .attr("class", "node");
+
+    // Append a circle
+    node.append("svg:circle")
+        .attr("r", function(d) { return 16; })
+        .style("fill", "#eee");
+
+    // Append images
+    node.append("svg:image")
+          .attr("xlink:href",  d =>  userHash[d.id].profile.image_32)
+          .attr("clip-path", "url(#clipCircle)")
+          .attr("x", function(d) { return -16;})
+          .attr("y", function(d) { return -16;});
 
     const edgeScale = d3.scaleLinear();
     edgeScale.domain([1, maxWeight]);
@@ -172,8 +192,7 @@ async function main() {
   }
 
   function ticked() {
-    node.attr("cx", function(d) { return d.x; })
-        .attr("cy", function(d) { return d.y; })
+    node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 
     link.attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
@@ -216,6 +235,19 @@ async function getChannelMap() {
   }, {});
 }
 
+
+async function getUserHash() {
+  const users = await new Promise((res, rej) => {
+    slack.users.list({token}, (err, data) => {
+      err ? rej(err) : res(data.members);
+    });
+  });
+
+  return users.reduce((out, user) => {
+    out[user.id] = user;
+    return out;
+  }, {});
+}
 
 
 
