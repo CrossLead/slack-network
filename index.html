@@ -72,8 +72,8 @@ function getParameterByName(name, url) {
 async function main() {
   const channelHash = await getChannelMap();
   const userHash = await getUserHash();
-  const nodeMap = new Map();
-  const edgeMap = new Map();
+  let nodeMap = new Map();
+  let edgeMap = new Map();
 
   var svg = d3.select("svg"),
       color = d3.scaleOrdinal(d3.schemeCategory10);
@@ -178,6 +178,8 @@ async function main() {
   function clear() {
     while (nodes.pop()) {}
     while (links.pop()) {}
+    nodeMap = new Map();
+    edgeMap = new Map();
     restart();
   }
 
