@@ -287,16 +287,16 @@ async function main() {
 
     const data = nodes.map(n => ({
       name: '@' + userHash[n.id].name,
-      influence: ranks[n.id].value
+      collaboration: ranks[n.id].value
     }));
 
-    data.sort((a, b) => b.influence - a.influence);
+    data.sort((a, b) => b.collaboration - a.collaboration);
 
     updateTable(
       data,
-      [ 'name', 'influence' ],
+      [ 'name', 'collaboration' ],
       {
-        influence: v => Math.round(v * 1000) / 1000
+        collaboration: v => Math.round(v * 1000) / 1000
       });
   }
 
